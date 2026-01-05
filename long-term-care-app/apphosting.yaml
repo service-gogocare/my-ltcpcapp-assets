@@ -1,0 +1,20 @@
+# Firebase App Hosting Configuration
+# Next.js 15 - 長照積分計算器
+
+runConfig:
+  minInstances: 0
+  maxInstances: 10
+  concurrency: 80
+  cpu: 1
+  memoryMiB: 512
+
+env:
+  - variable: GEMINI_API_KEY
+    secret: GEMINI_API_KEY
+    availability:
+      - RUNTIME
+  
+  - variable: GOOGLE_APPS_SCRIPT_URL
+    secret: GOOGLE_APPS_SCRIPT_URL
+    availability:
+      - RUNTIME
