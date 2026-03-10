@@ -40,7 +40,7 @@ export interface CalculationResults {
 }
 
 export interface RecommendedCourse {
-  id: number;
+  id: number | string;
   name: string;
   url: string;
   category: 'PROFESSIONAL' | 'QER' | 'CORE' | 'CULTURAL_NEW';

@@ -5,10 +5,11 @@ import { SpinnerIcon, XCircleIcon, CheckCircleIcon } from './icons';
 interface EmailModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSubmit: () => Promise<void>; // No longer needs email parameter
+  onSubmit: (email: string) => Promise<void>;
 }
 
 export const EmailModal: React.FC<EmailModalProps> = ({ isOpen, onClose, onSubmit }) => {
+  const [email, setEmail] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isSuccess, setIsSuccess] = useState(false);
@@ -17,12 +18,18 @@ export const EmailModal: React.FC<EmailModalProps> = ({ isOpen, onClose, onSubmi
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    if (!email || !email.includes('@')) {
+      setError('請輸入有效的電子信箱。');
+      return;
+    }
+
     setIsLoading(true);
     setError(null);
     setIsSuccess(false);
 
     try {
-      await onSubmit();
+      await onSubmit(email);
       setIsSuccess(true);
       setTimeout(() => {
         handleClose();
@@ -35,6 +42,7 @@ export const EmailModal: React.FC<EmailModalProps> = ({ isOpen, onClose, onSubmi
   };
   
   const handleClose = () => {
+    setEmail('');
     setError(null);
     setIsLoading(false);
     setIsSuccess(false);
@@ -58,15 +66,33 @@ export const EmailModal: React.FC<EmailModalProps> = ({ isOpen, onClose, onSubmi
               <CheckCircleIcon className="h-16 w-16 text-status-success mx-auto" />
               <h5 className="text-xl font-semibold text-status-success">已成功傳送！</h5>
               <p className="text-gray-600 dark:text-gray-400">
-                積分結果圖片與免費課程資訊已寄送到您的註冊信箱，請至信箱查收。
+                積分結果圖片與免費課程資訊已寄送到您的信箱：<br/>
+                <span className="font-bold text-brand-primary">{email}</span><br/>
+                請至信箱查收。
               </p>
             </div>
           ) : (
             <form onSubmit={handleSubmit} className="space-y-6">
-              <div className="space-y-2">
+              <div className="space-y-4">
                 <p className="text-gray-700 dark:text-gray-300">
-                  系統將自動查找您的註冊信箱，並傳送詳細的積分分析報告。
+                  請輸入您的電子信箱，系統將傳送詳細的積分分析報告。
                 </p>
+                
+                <div className="text-left">
+                  <label htmlFor="modal-email" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    電子信箱
+                  </label>
+                  <input
+                    id="modal-email"
+                    type="email"
+                    required
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    placeholder="example@email.com"
+                    className="block w-full px-4 py-3 rounded-lg border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white focus:ring-2 focus:ring-brand-secondary focus:border-transparent transition-all outline-none"
+                  />
+                </div>
+
                 <div className="p-4 bg-brand-accent/20 rounded-lg border border-brand-accent/50 text-brand-primary text-sm">
                   ✨ 包含免費課程領取連結 ✨
                 </div>

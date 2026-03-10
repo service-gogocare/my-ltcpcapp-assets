@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { CalculationResults, RecommendedCourse } from '../types';
 import { CheckCircleIcon, XCircleIcon, InfoIcon, ExternalLinkIcon, DownloadIcon } from './icons';
 import { recommendedCourses as staticCourses } from '../data/courses';
@@ -17,34 +17,46 @@ const RecommendationModal: React.FC<{
   onClose: () => void;
   title: string;
   courses: RecommendedCourse[];
-}> = ({ isOpen, onClose, title, courses }) => {
+  isFetching: boolean;
+}> = ({ isOpen, onClose, title, courses, isFetching }) => {
   if (!isOpen) return null;
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex justify-center items-center p-4" onClick={onClose} role="dialog" aria-modal="true" aria-labelledby="recommendation-modal-title">
-      <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl w-full max-w-lg max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
-        <div className="p-6 border-b border-gray-200 dark:border-gray-700 sticky top-0 bg-white dark:bg-gray-800 z-10">
-          <h4 id="recommendation-modal-title" className="text-xl font-bold text-brand-primary dark:text-brand-accent">{title}</h4>
-          <button onClick={onClose} className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200" aria-label="關閉視窗">
+      <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl w-full max-w-lg max-h-[90vh] flex flex-col" onClick={e => e.stopPropagation()}>
+        <div className="p-6 border-b border-gray-200 dark:border-gray-700 sticky top-0 bg-white dark:bg-gray-800 z-10 flex justify-between items-center">
+          <h4 id="recommendation-modal-title" className="text-xl font-bold text-brand-primary dark:text-brand-accent pr-8">{title}</h4>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition-colors" aria-label="關閉視窗">
              <XCircleIcon className="h-8 w-8" />
           </button>
         </div>
-        <div className="p-6 space-y-4">
-          {courses.length > 0 ? courses.map(course => (
-             <a
-                key={course.id}
-                href={course.url}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-700 rounded-lg hover:bg-brand-accent dark:hover:bg-brand-secondary hover:text-brand-dark dark:hover:text-white transition-all duration-300 group"
-            >
-                <span className="font-medium text-gray-800 dark:text-gray-100 group-hover:text-brand-dark dark:group-hover:text-white">
-                    {course.name}
-                </span>
-                <ExternalLinkIcon className="h-5 w-5 text-gray-400 dark:text-gray-500 group-hover:text-brand-dark dark:group-hover:text-white transition-colors" />
-            </a>
-          )) : (
-            <p className="text-gray-600 dark:text-gray-400">目前沒有針對此項目的特定課程推薦，或正在載入最新課程資料。</p>
+        <div className="p-6 space-y-4 overflow-y-auto">
+          {isFetching ? (
+            <div className="flex flex-col items-center justify-center py-12 space-y-4">
+              <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-brand-primary"></div>
+              <p className="text-base font-medium text-gray-600 dark:text-gray-400">正在獲取最新課程資訊...</p>
+            </div>
+          ) : courses.length > 0 ? (
+            <div className="space-y-3">
+              {courses.map(course => (
+                <a
+                    key={course.id}
+                    href={course.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-700 rounded-xl hover:bg-brand-accent dark:hover:bg-brand-secondary hover:text-brand-dark dark:hover:text-white transition-all duration-300 group shadow-sm border border-transparent hover:border-brand-primary/20"
+                >
+                    <span className="font-medium text-gray-800 dark:text-gray-100 group-hover:text-brand-dark dark:group-hover:text-white line-clamp-2">
+                        {course.name}
+                    </span>
+                    <ExternalLinkIcon className="h-5 w-5 text-gray-400 dark:text-gray-500 group-hover:text-brand-dark dark:group-hover:text-white transition-colors flex-shrink-0 ml-3" />
+                </a>
+              ))}
+            </div>
+          ) : (
+            <div className="text-center py-8">
+              <p className="text-gray-600 dark:text-gray-400">目前沒有針對此項目的特定課程推薦。</p>
+            </div>
           )}
         </div>
       </div>
@@ -102,43 +114,48 @@ const ProgressBar: React.FC<{ value: number; max: number }> = ({ value, max }) =
 };
 
 export const ResultDisplay: React.FC<ResultDisplayProps> = ({ results, totalPointsGoal, isLoading, onDownload }) => {
-  const [modalState, setModalState] = useState<{ isOpen: boolean; title: string; courses: RecommendedCourse[] }>({ isOpen: false, title: '', courses: [] });
-  // Initialize with static courses to ensure data is available immediately, 
-  // then update with fresh data once fetched.
-  const [courseList, setCourseList] = useState<RecommendedCourse[]>(staticCourses);
+  const [modalState, setModalState] = useState<{ isOpen: boolean; category: 'PROFESSIONAL' | 'QER' | 'CORE' | 'CULTURAL_NEW' | null }>({ isOpen: false, category: null });
+  const [coursesData, setCoursesData] = useState<{ list: RecommendedCourse[]; isFetching: boolean }>({
+    list: staticCourses,
+    isFetching: false
+  });
 
   useEffect(() => {
     const loadCourses = async () => {
-        const freshCourses = await fetchRecommendedCourses();
-        if (freshCourses && freshCourses.length > 0) {
-            setCourseList(freshCourses);
+        setCoursesData(prev => ({ ...prev, isFetching: true }));
+        try {
+            const freshCourses = await fetchRecommendedCourses();
+            if (freshCourses && freshCourses.length > 0) {
+                setCoursesData({ list: freshCourses, isFetching: false });
+            } else {
+                setCoursesData(prev => ({ ...prev, isFetching: false }));
+            }
+        } catch (error) {
+            console.error('[ResultDisplay] Failed to fetch courses:', error);
+            setCoursesData(prev => ({ ...prev, isFetching: false }));
         }
     };
     loadCourses();
   }, []);
 
   const showRecommendations = (category: 'PROFESSIONAL' | 'QER' | 'CORE' | 'CULTURAL_NEW') => {
-    let title = '';
-    
-    // Filter from the current courseList (which might be static or fresh)
-    const courses = courseList.filter(c => c.category === category);
-
-    switch (category) {
-        case 'PROFESSIONAL':
-            title = '專業課程 推薦課程';
-            break;
-        case 'QER':
-            title = '專業品質/倫理/法規 推薦課程';
-            break;
-        case 'CORE':
-            title = '消防、應變、感控、性別 推薦課程';
-            break;
-        case 'CULTURAL_NEW':
-            title = '文化敏感度 推薦課程';
-            break;
-    }
-    setModalState({ isOpen: true, title, courses });
+    setModalState({ isOpen: true, category });
   };
+
+  const getModalTitle = (category: string | null) => {
+    switch (category) {
+        case 'PROFESSIONAL': return '專業課程 推薦課程';
+        case 'QER': return '專業品質/倫理/法規 推薦課程';
+        case 'CORE': return '消防、應變、感控、性別 推薦課程';
+        case 'CULTURAL_NEW': return '文化敏感度 推薦課程';
+        default: return '';
+    }
+  };
+
+  const currentModalCourses = useMemo(() => {
+    if (!modalState.category) return [];
+    return coursesData.list.filter(c => c.category === modalState.category);
+  }, [coursesData.list, modalState.category]);
   
   const qerGoal = 24;
   const qerDetails = results.isQualityEthicsRegulationsSumMet ? (
@@ -173,8 +190,9 @@ export const ResultDisplay: React.FC<ResultDisplayProps> = ({ results, totalPoin
       <RecommendationModal 
         isOpen={modalState.isOpen}
         onClose={() => setModalState({ ...modalState, isOpen: false })}
-        title={modalState.title}
-        courses={modalState.courses}
+        title={getModalTitle(modalState.category)}
+        courses={currentModalCourses}
+        isFetching={coursesData.isFetching}
       />
       <div className="p-6 bg-white dark:bg-gray-800 rounded-2xl shadow-lg">
         <div className="flex justify-between items-center mb-6">

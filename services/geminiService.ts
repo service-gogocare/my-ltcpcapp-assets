@@ -70,9 +70,10 @@ const pointsSchema = {
  */
 async function generateContentWithFallback(aiClient: any, params: any) {
     // List of models to try in order.
-    // 1. gemini-2.5-flash: Best balance of speed and intelligence.
-    // 2. gemini-flash-lite-latest: Faster, lighter, often has separate quota bucket.
-    const models = ['gemini-2.5-flash', 'gemini-flash-lite-latest'];
+    // 1. gemini-3-flash-preview: Latest generation, fast and capable. Recommended for basic/complex tasks.
+    // 2. gemini-2.5-flash: Stable, high-performance fallback.
+    // 3. gemini-3.1-pro-preview: Most powerful model, but might require a paid key in some environments.
+    const models = ['gemini-3.1-pro-preview', 'gemini-3-flash-preview', 'gemini-flash-latest'];
     
     let lastError: any = null;
 
@@ -83,7 +84,6 @@ async function generateContentWithFallback(aiClient: any, params: any) {
             const currentParams = { ...params, model };
             
             // Internal Retry Loop for the *same* model (quick glitches)
-            // We try 2 times per model with a short delay
             let internalRetries = 0;
             const maxInternalRetries = 2;
             
@@ -97,12 +97,12 @@ async function generateContentWithFallback(aiClient: any, params: any) {
 
                     if (isBusy && internalRetries < maxInternalRetries) {
                         internalRetries++;
-                        const delay = 2000 * internalRetries; // Wait 2s, then 4s
+                        const delay = 2000 * internalRetries;
                         console.warn(`Model ${model} busy (${errorCode}). Retrying in ${delay}ms...`);
                         await new Promise(resolve => setTimeout(resolve, delay));
                         continue;
                     }
-                    throw err; // Throw to outer loop to trigger model switch
+                    throw err;
                 }
             }
 
@@ -110,19 +110,18 @@ async function generateContentWithFallback(aiClient: any, params: any) {
             console.warn(`Model ${model} failed:`, error.message);
             lastError = error;
             
-            // Check if we should try the next model
             const errorCode = error.status || error.code;
             const errorMsg = error.message || '';
             const isRateLimit = errorCode === 429 || errorMsg.includes('429') || errorMsg.includes('Rate exceeded') || errorMsg.includes('RESOURCE_EXHAUSTED');
             const isServerOverload = errorCode === 503 || errorMsg.includes('503');
+            const isPermissionDenied = errorCode === 403 || errorMsg.includes('403') || errorMsg.includes('PERMISSION_DENIED');
 
-            // Only switch models if it's a rate limit or server issue. 
-            // If it's a validation error (400), don't switch.
-            if (isRateLimit || isServerOverload) {
-                console.log('Switching to fallback model...');
-                continue; // Try next model in the list
+            // Switch models if it's a rate limit, server issue, or 403 (which might be model-specific)
+            if (isRateLimit || isServerOverload || isPermissionDenied) {
+                console.log(`Model ${model} encountered ${errorCode}. Switching to fallback...`);
+                continue;
             } else {
-                throw error; // Fatal error, stop trying
+                throw error;
             }
         }
     }
@@ -139,7 +138,22 @@ async function generateContentWithFallback(aiClient: any, params: any) {
 export const parsePdfForPoints = async (file: File): Promise<Partial<Points>> => {
   try {
     // 1. Initialize the Gemini API client
-    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+    const apiKey = process.env.GEMINI_API_KEY;
+    
+    // 安全的偵錯資訊：只印出長度與前幾碼
+    console.log("Gemini API Key 狀態檢查:", {
+        exists: !!apiKey,
+        length: apiKey?.length || 0,
+        prefix: apiKey ? apiKey.substring(0, 4) + "..." : "none",
+        isUndefinedString: apiKey === 'undefined'
+    });
+
+    if (!apiKey || apiKey === 'undefined' || apiKey === 'null' || apiKey.trim() === '') {
+        console.error("Gemini API Key 缺失或無效");
+        throw new Error("系統未偵測到有效的 Gemini API Key。這通常是因為發布網頁時環境變數未正確寫入，請嘗試重新發布或檢查 Settings 設定。");
+    }
+    
+    const ai = new GoogleGenAI({ apiKey });
 
     // 2. Convert PDF to an array of Base64 image strings
     const imageBase64Strings = await convertPdfToImagesBase64(file);

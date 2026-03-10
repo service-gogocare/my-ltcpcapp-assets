@@ -1,5 +1,6 @@
 import { RecommendedCourse } from '../types';
 import { recommendedCourses as fallbackCourses } from '../data/courses';
+import { GOOGLE_APPS_SCRIPT_URL } from '../constants';
 
 const TARGET_URL = 'https://gogocare.com.tw/tw/course/list.html';
 const BASE_URL = 'https://gogocare.com.tw';
@@ -14,38 +15,109 @@ const KEYWORDS = {
  * Helper to fetch HTML content using multiple proxy strategies to ensure reliability.
  */
 async function fetchHTMLWithFallback(targetUrl: string): Promise<string> {
-    // Append timestamp to the *target* URL to ensure we don't get a cached version from the target server
+    const encodedTarget = encodeURIComponent(targetUrl);
     const targetWithCacheBust = `${targetUrl}?t=${Date.now()}`;
-    const encodedTarget = encodeURIComponent(targetWithCacheBust);
+    const encodedTargetWithBust = encodeURIComponent(targetWithCacheBust);
 
-    // Strategy 1: AllOrigins JSON Endpoint (Most reliable for CORS)
-    // We use /get instead of /raw because /get returns JSON with Access-Control-Allow-Origin: *
-    // and wraps the content, avoiding header conflicts from the source site.
+    // Strategy 0: Local Server Proxy (Most reliable, no CORS issues)
     try {
-        console.log('[CourseService] Strategy 1: Trying AllOrigins (JSON mode)...');
-        const res = await fetch(`https://api.allorigins.win/get?url=${encodedTarget}`);
+        console.log('[CourseService] Strategy 0: Trying Local Server Proxy...');
+        const res = await fetch('/api/courses-proxy');
+        if (res.ok) {
+            const text = await res.text();
+            if (text && text.length > 500) return text;
+        }
+    } catch (e) {
+        console.warn('[CourseService] Local Server Proxy failed:', e);
+    }
+
+    // Strategy 1: GAS Proxy (Reliable as it runs server-side)
+    try {
+        console.log('[CourseService] Strategy 1: Trying GAS Proxy...');
+        const res = await fetch(GOOGLE_APPS_SCRIPT_URL, {
+            method: 'POST',
+            mode: 'cors',
+            headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+            body: JSON.stringify({ action: 'proxyFetch', url: targetUrl })
+        });
         if (res.ok) {
             const data = await res.json();
-            if (data.contents) {
-                return data.contents;
-            }
+            if (data.html && data.html.length > 500) return data.html;
         }
-        console.warn('[CourseService] AllOrigins returned empty content.');
     } catch (e) {
-        console.warn('[CourseService] AllOrigins failed:', e);
+        console.warn('[CourseService] GAS Proxy failed:', e);
     }
 
     // Strategy 2: CorsProxy.io (Direct HTML)
-    // Faster, but sometimes blocked or stricter. Good backup.
     try {
         console.log('[CourseService] Strategy 2: Trying CorsProxy.io...');
         const res = await fetch(`https://corsproxy.io/?${encodedTarget}`);
         if (res.ok) {
-            return await res.text();
+            const text = await res.text();
+            if (text && text.length > 500) return text;
         }
-        console.warn('[CourseService] CorsProxy.io returned status:', res.status);
     } catch (e) {
         console.warn('[CourseService] CorsProxy.io failed:', e);
+    }
+
+    // Strategy 3: AllOrigins JSON Endpoint
+    try {
+        console.log('[CourseService] Strategy 3: Trying AllOrigins (JSON mode)...');
+        const res = await fetch(`https://api.allorigins.win/get?url=${encodedTargetWithBust}`);
+        if (res.ok) {
+            const data = await res.json();
+            if (data.contents && data.contents.length > 500) return data.contents;
+        }
+    } catch (e) {
+        console.warn('[CourseService] AllOrigins failed:', e);
+    }
+
+    // Strategy 4: Codetabs (Direct HTML)
+    try {
+        console.log('[CourseService] Strategy 4: Trying Codetabs...');
+        const res = await fetch(`https://api.codetabs.com/v1/proxy?url=${encodedTarget}`);
+        if (res.ok) {
+            const text = await res.text();
+            if (text && text.length > 500) return text;
+        }
+    } catch (e) {
+        console.warn('[CourseService] Codetabs failed:', e);
+    }
+
+    // Strategy 5: AllOrigins Raw (Direct HTML)
+    try {
+        console.log('[CourseService] Strategy 5: Trying AllOrigins (Raw mode)...');
+        const res = await fetch(`https://api.allorigins.win/raw?url=${encodedTarget}`);
+        if (res.ok) {
+            const text = await res.text();
+            if (text && text.length > 500) return text;
+        }
+    } catch (e) {
+        console.warn('[CourseService] AllOrigins Raw failed:', e);
+    }
+
+    // Strategy 6: ThingProxy (Backup)
+    try {
+        console.log('[CourseService] Strategy 6: Trying ThingProxy...');
+        const res = await fetch(`https://thingproxy.freeboard.io/fetch/${targetUrl}`);
+        if (res.ok) {
+            const text = await res.text();
+            if (text && text.length > 500) return text;
+        }
+    } catch (e) {
+        console.warn('[CourseService] ThingProxy failed:', e);
+    }
+
+    // Strategy 7: Cloudflare Worker Proxy (Generic pattern)
+    try {
+        console.log('[CourseService] Strategy 7: Trying generic CORS proxy...');
+        const res = await fetch(`https://cors-anywhere.azm.workers.dev/${targetUrl}`);
+        if (res.ok) {
+            const text = await res.text();
+            if (text && text.length > 500) return text;
+        }
+    } catch (e) {
+        console.warn('[CourseService] Generic CORS proxy failed:', e);
     }
 
     throw new Error('All proxy strategies failed to fetch course data.');
@@ -53,6 +125,26 @@ async function fetchHTMLWithFallback(targetUrl: string): Promise<string> {
 
 export const fetchRecommendedCourses = async (): Promise<RecommendedCourse[]> => {
   try {
+    // Strategy 0: Try to get pre-parsed courses from GAS (Fastest & most reliable)
+    try {
+        console.log('[CourseService] Attempting to fetch parsed courses from GAS...');
+        const res = await fetch(GOOGLE_APPS_SCRIPT_URL, {
+            method: 'POST',
+            mode: 'cors',
+            headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+            body: JSON.stringify({ action: 'getCourses' })
+        });
+        if (res.ok) {
+            const data = await res.json();
+            if (data.courses && data.courses.length > 0) {
+                console.log(`[CourseService] Successfully fetched ${data.courses.length} courses from GAS.`);
+                return data.courses;
+            }
+        }
+    } catch (e) {
+        console.warn('[CourseService] GAS getCourses failed, falling back to HTML scraping:', e);
+    }
+
     const htmlString = await fetchHTMLWithFallback(TARGET_URL);
     console.log(`[CourseService] Fetch success. Content length: ${htmlString.length}`);
 
@@ -135,7 +227,7 @@ export const fetchRecommendedCourses = async (): Promise<RecommendedCourse[]> =>
     
     if (fetchedCourses.length === 0) {
         console.warn('[CourseService] No courses parsed. Falling back to static data.');
-        return fallbackCourses;
+        return [...fallbackCourses];
     }
     
     return fetchedCourses;
@@ -143,6 +235,6 @@ export const fetchRecommendedCourses = async (): Promise<RecommendedCourse[]> =>
   } catch (error) {
     console.error('[CourseService] Error during course fetch:', error);
     // Return fallback so the UI remains functional
-    return fallbackCourses;
+    return [...fallbackCourses];
   }
 };

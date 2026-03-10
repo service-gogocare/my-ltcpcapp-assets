@@ -12,7 +12,7 @@ import { FooterIllustration } from './components/FooterIllustration';
 import { UsageGuideTitle } from './components/guide-images/UsageGuideTitle';
 import { LoginScreen } from './components/LoginScreen';
 
-const GOOGLE_APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzgWKSWufG7-N_tnxoOj9Iv-SelKfP7cu7XW--ZOA2BlfNxrMoUVmH9kMRRfov2k1lG5A/exec';
+import { GOOGLE_APPS_SCRIPT_URL } from './constants';
 
 const initialPoints: Points = {
   professional: { physical: 0, online: 0 },
@@ -173,27 +173,58 @@ const App: React.FC = () => {
 
   const handleOpenEmailModal = () => setIsEmailModalOpen(true);
 
-  const handleSendResult = useCallback(async () => {
+  const handleSendResult = useCallback(async (email: string) => {
     if (resultsRef.current === null) {
       throw new Error("結果元件未找到，無法生成圖片。");
     }
     
+    // 1. 生成圖片
     // @ts-ignore
     const dataUrl = await window.htmlToImage.toJpeg(resultsRef.current, { 
-        quality: 1.0,
-        pixelRatio: 3,
+        quality: 0.9, // 稍微降低品質以縮小體積，提高傳送成功率
+        pixelRatio: 1.5,
         backgroundColor: '#ffffff',
         style: { backgroundColor: '#ffffff' }
     });
 
+    // 準備傳送資料，包含詳細的積分結果供 Google Sheet 記錄
     const payload = {
-      userId, 
+      action: 'saveData',
+      id: userId || 'guest', // GAS 腳本預期使用 'id'
+      email,
       imageData: dataUrl,
       points,
       results,
+      userId: userId || 'guest',
+      // 新增 sheetData 欄位，對應使用者要求的表格結構
+      sheetData: {
+        "EMAIL": email,
+        "專業課程_實體": points.professional.physical,
+        "專業課程_網路": points.professional.online,
+        "專業品質_實體": points.quality.physical,
+        "專業品質_網路": points.quality.online,
+        "專業倫理_實體": points.ethics.physical,
+        "專業倫理_網路": points.ethics.online,
+        "專業法規_實體": points.regulations.physical,
+        "專業法規_網路": points.regulations.online,
+        "消防安全": points.fireSafety,
+        "緊急應變": points.emergencyResponse,
+        "感染管制": points.infectionControl,
+        "性別敏感度": points.genderSensitivity,
+        "舊制(2024/6/3前取得)累積積分": points.culturalOld,
+        "原住民族文化敏感度及能力": points.culturalNew.indigenous,
+        "多元族群文化敏感度及能力": points.culturalNew.multicultural,
+        "總積分": results.totalPoints,
+        "身分證": userId || 'guest',
+        // 額外提供 summary keys 供 GAS 腳本直接使用，避免 undefined
+        "professional": results.professionalSum,
+        "qer": results.qualityEthicsRegulationsSum,
+        "core": results.coreCoursesSum,
+        "cultural": results.culturalOldCapped + results.culturalNewTotal,
+        "total": results.totalPoints
+      }
     };
     
-    // 使用統一的 GAS 網址
     const response = await fetch(GOOGLE_APPS_SCRIPT_URL, {
       method: 'POST',
       headers: {

@@ -1,7 +1,7 @@
 
 import React, { useState } from 'react';
 import { validateIdFormat, checkUserExists, registerPendingUser, verifyRegistration } from '../services/authService';
-import { SpinnerIcon, InfoIcon, ExternalLinkIcon } from './icons';
+import { SpinnerIcon, InfoIcon, ExternalLinkIcon, CheckCircleIcon } from './icons';
 
 interface LoginScreenProps {
   onLoginSuccess: (id: string) => void;
@@ -21,7 +21,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
     const upperId = id.toUpperCase().trim();
 
     if (!validateIdFormat(upperId)) {
-      setError('身分證格式有誤。請確認：第一碼為大寫英文字母，第二碼為 1, 2 或 9，且總長度為 10 碼。');
+      setError('身分證格式有誤。請確認：第一碼為大寫英文字母，第二碼為 1, 2 或 8, 9，且總長度為 10 碼。');
       return;
     }
 
@@ -31,7 +31,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
       if (exists) {
         onLoginSuccess(upperId);
       } else {
-        setError('資料庫查無此身分證字號或帳號尚未驗證。請確認您是否已完成註冊。');
+        setError('資料庫查無此身分證字號或帳號尚未驗證。');
         setShowRegister(true);
       }
     } catch (err) {
@@ -41,11 +41,15 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
     }
   };
 
-  const handleRegisterClick = async () => {
+  const handleRegisterClick = () => {
     const upperId = id.toUpperCase().trim();
-    // 異步執行，不阻礙使用者跳轉頁面
-    registerPendingUser(upperId);
+    // 1. 立即開啟視窗，避免被瀏覽器彈出視窗攔截器阻擋
     window.open("https://www.gogocare.com.tw/tw/mem/register", "_blank");
+    
+    // 2. 背景執行記錄動作
+    registerPendingUser(upperId).catch(err => {
+      console.error('[AuthService] 背景記錄失敗:', err);
+    });
   };
 
   const handleReverify = async () => {
@@ -116,24 +120,42 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
           </form>
 
           {showRegister && (
-            <div className="mt-8 pt-6 border-t border-gray-100 dark:border-gray-700 text-center animate-fade-in-up">
-              <p className="text-gray-600 dark:text-gray-400 text-sm mb-4">
-                尚未加入學員？立即註冊以啟用計算機服務。
+            <div className="mt-8 p-6 bg-brand-accent/10 rounded-xl border border-brand-accent/30 text-center animate-fade-in-up">
+              <p className="text-gray-700 dark:text-gray-300 text-sm font-medium mb-4">
+                尚未完成註冊或驗證？
               </p>
-              <button
-                onClick={handleRegisterClick}
-                className="inline-flex items-center px-6 py-2 border-2 border-brand-secondary text-brand-secondary dark:text-brand-accent font-semibold rounded-full hover:bg-brand-secondary hover:text-white transition-all"
-              >
-                前往註冊頁面
-                <ExternalLinkIcon className="ml-2 h-4 w-4" />
-              </button>
-              <button 
-                onClick={handleReverify}
-                disabled={isLoading}
-                className="block w-full mt-4 text-xs text-gray-400 hover:text-brand-primary underline transition-colors disabled:opacity-50"
-              >
-                已完成註冊？按此重新驗證
-              </button>
+              
+              <div className="flex flex-col gap-3">
+                <button
+                  onClick={handleRegisterClick}
+                  className="inline-flex items-center justify-center px-6 py-3 border-2 border-brand-secondary text-brand-secondary dark:text-brand-accent font-bold rounded-xl hover:bg-brand-secondary hover:text-white transition-all transform active:scale-95"
+                >
+                  <ExternalLinkIcon className="mr-2 h-5 w-5" />
+                  前往註冊頁面
+                </button>
+
+                <div className="relative py-2">
+                  <div className="absolute inset-0 flex items-center" aria-hidden="true">
+                    <div className="w-full border-t border-gray-200 dark:border-gray-700"></div>
+                  </div>
+                  <div className="relative flex justify-center text-xs uppercase">
+                    <span className="bg-white dark:bg-gray-800 px-2 text-gray-500">或是</span>
+                  </div>
+                </div>
+
+                <button 
+                  onClick={handleReverify}
+                  disabled={isLoading}
+                  className="group flex items-center justify-center w-full py-3 px-4 bg-brand-accent hover:bg-brand-secondary text-brand-primary hover:text-white font-bold rounded-xl shadow-md transition-all transform active:scale-95 disabled:opacity-50"
+                >
+                  {isLoading ? (
+                    <SpinnerIcon className="animate-spin h-5 w-5 mr-2" />
+                  ) : (
+                    <CheckCircleIcon className="h-5 w-5 mr-2 text-brand-primary group-hover:text-white transition-colors" />
+                  )}
+                  已完成註冊？按此重新驗證
+                </button>
+              </div>
             </div>
           )}
         </div>
