@@ -14,5 +14,5 @@
     "isolatedModules": true
   },
   "include": ["**/*.ts", "**/*.tsx"],
-  "exclude": ["node_modules", "backend", "vite.config.ts"]
+  "exclude": ["node_modules", "backend", "vite.config.ts", "long-term-care-app"]
 }
