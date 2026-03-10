@@ -42,7 +42,7 @@ async function startServer() {
   } else {
     // 生產環境：服務 dist/ 靜態檔案
     app.use(express.static(path.join(__dirname, "dist")));
-    app.get("*", (_req, res) => {
+    app.get("/{*splat}", (_req, res) => {
       res.sendFile(path.join(__dirname, "dist", "index.html"));
     });
   }
