@@ -14,18 +14,28 @@ async function startServer() {
 
   app.use(express.json({ limit: "10mb" }));
 
-  // ✅ 修正 MIME：明確設定靜態資源 MIME type
-  app.use(
-    express.static(distPath, {
-      setHeaders: (res, filePath) => {
-        if (filePath.endsWith(".js")) {
-          res.setHeader("Content-Type", "application/javascript; charset=utf-8");
-        } else if (filePath.endsWith(".css")) {
-          res.setHeader("Content-Type", "text/css; charset=utf-8");
-        }
-      },
-    })
-  );
+  // ✅ index.html 永不快取（每次重新部署都能拿到最新版）
+app.get(["/", "/index.html"], (_req: Request, res: Response) => {
+  res.setHeader("Cache-Control", "no-cache, no-store, must-revalidate");
+  res.setHeader("Pragma", "no-cache");
+  res.setHeader("Expires", "0");
+  res.sendFile(path.join(distPath, "index.html"));
+});
+
+ // ✅ 靜態資源（JS/CSS）長時間快取（有 hash 保護，安全）
+app.use(
+  express.static(distPath, {
+    setHeaders: (res, filePath) => {
+      if (filePath.endsWith(".js")) {
+        res.setHeader("Content-Type", "application/javascript; charset=utf-8");
+        res.setHeader("Cache-Control", "public, max-age=31536000, immutable");
+      } else if (filePath.endsWith(".css")) {
+        res.setHeader("Content-Type", "text/css; charset=utf-8");
+        res.setHeader("Cache-Control", "public, max-age=31536000, immutable");
+      }
+    },
+  })
+);
 
   // ✅ 安全：課程 Proxy（原有）
   app.get("/api/courses-proxy", async (_req: Request, res: Response) => {
