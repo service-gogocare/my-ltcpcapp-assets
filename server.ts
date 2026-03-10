@@ -1,14 +1,16 @@
 import express, { Request, Response } from "express";
 import path from "path";
-import { fileURLToPath } from "url";
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-const distPath = path.resolve(__dirname, "dist");
+const distPath = path.resolve(process.cwd(), "dist");
 
 async function startServer() {
   const app = express();
   const PORT = parseInt(process.env.PORT || "8080");
+
+  // ✅ 啟動時印出路徑，方便 Cloud Run Log 確認
+  console.log(`[Server] distPath: ${distPath}`);
+  console.log(`[Server] NODE_ENV: ${process.env.NODE_ENV}`);
+  console.log(`[Server] PORT: ${PORT}`);
 
   app.use(express.json({ limit: "10mb" }));
 
