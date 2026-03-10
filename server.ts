@@ -8,7 +8,7 @@ const __dirname = path.dirname(__filename);
 
 async function startServer() {
   const app = express();
-  const PORT = 3000;
+  const PORT = parseInt(process.env.PORT || "8080");
 
   // API Route for courses - Server-side scraping to bypass CORS
   app.get("/api/courses-proxy", async (req, res) => {
