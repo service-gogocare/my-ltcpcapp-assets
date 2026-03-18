@@ -74,7 +74,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
     <div className="min-h-screen flex items-center justify-center bg-gray-100 dark:bg-brand-dark p-4">
       <div className="max-w-md w-full bg-white dark:bg-gray-800 rounded-2xl shadow-2xl overflow-hidden animate-fade-in-up">
         <div className="bg-brand-primary p-6 text-white text-center">
-          <h2 className="text-2xl font-bold">長照積分智慧計算機</h2>
+          <h2 className="text-2xl font-bold">長照積分計算機</h2>
           <p className="text-brand-accent text-sm mt-1">學員身分驗證</p>
         </div>
         

@@ -345,20 +345,34 @@ const App: React.FC = () => {
                     <span>返回</span>
                 </button>
             )}
-            <h1 className="text-4xl sm:text-5xl font-extrabold text-[#248dc5] dark:text-white">長照積分智慧計算機</h1>
-            <p className="mt-2 text-lg text-gray-600 dark:text-gray-300">GOGO CARE Copyright© (驗證學員：{userId})</p>
+            <h1 className="text-4xl sm:text-5xl font-extrabold text-[#248dc5] dark:text-white">長照積分計算機</h1>
+            <p className="mt-2 text-lg text-gray-600 dark:text-gray-300">
+  GOGO CARE Copyright©
+  <br />
+  (驗證學員：{userId})
+</p>
+
             
             {viewMode === 'initial' && (
-              <a
-                href="https://ltcpap.mohw.gov.tw/molc/eg999/index"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="mt-4 inline-flex items-center text-brand-secondary dark:text-brand-accent hover:underline transition-colors"
-              >
-                <ExternalLinkIcon className="w-5 h-5 mr-2" />
-                <span>衛福部長照積分系統查詢</span>
-              </a>
-            )}
+  <div className="mt-4 flex items-center justify-center gap-2">
+    <span className="text-xl animate-bounce">👉</span>
+    <a
+      href="https://ltcpap.mohw.gov.tw/molc/eg999/index"
+      target="_blank"
+      rel="noopener noreferrer"
+      className="inline-flex items-center gap-2 px-4 py-2 rounded-lg
+                 bg-brand-secondary text-white dark:bg-brand-accent
+                 hover:opacity-90 hover:shadow-md
+                 transition-all duration-200 font-medium text-sm"
+    >
+      <ExternalLinkIcon className="w-4 h-4" />
+      <span>衛福部長照積分系統查詢</span>
+    </a>
+    <span className="text-xl animate-bounce">👈</span>
+  </div>
+)}
+
+
           </header>
 
           <input type="file" ref={fileInputRef} onChange={handleFileUpload} accept=".pdf" className="hidden" disabled={isLoading} />
