@@ -122,7 +122,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
           {showRegister && (
             <div className="mt-8 p-6 bg-brand-accent/10 rounded-xl border border-brand-accent/30 text-center animate-fade-in-up">
               <p className="text-gray-700 dark:text-gray-300 text-sm font-medium mb-4">
-                尚未完成註冊或驗證？
+                尚未完成註冊或登入？
               </p>
               
               <div className="flex flex-col gap-3">
@@ -131,7 +131,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
                   className="inline-flex items-center justify-center px-6 py-3 border-2 border-brand-secondary text-brand-secondary dark:text-brand-accent font-bold rounded-xl hover:bg-brand-secondary hover:text-white transition-all transform active:scale-95"
                 >
                   <ExternalLinkIcon className="mr-2 h-5 w-5" />
-                  前往註冊頁面
+                  前往註冊或登入頁面
                 </button>
 
                 <div className="relative py-2">
@@ -153,7 +153,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
                   ) : (
                     <CheckCircleIcon className="h-5 w-5 mr-2 text-brand-primary group-hover:text-white transition-colors" />
                   )}
-                  已完成註冊？按此重新驗證
+                  已完成註冊登入？按此重新驗證
                 </button>
               </div>
             </div>
